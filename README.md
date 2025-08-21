@@ -8,3 +8,4 @@ Practical part of this work can be defined as:
 - possibility to avoid unsafe work in browser while get active content from unknown news servers;
 - possibility to set easy form for selected news feeds and user's data;
 - possibility to concentrate on easy amateur scripting matter.
+- optimal for smartphone screen (only)
