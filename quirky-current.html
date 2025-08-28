@@ -1,0 +1,1299 @@
+﻿<!DOCTYPE html><html lang="uk-UA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="description" content="quirky">
+</head><style>
+a {text-decoration: none; color: #bbc} body {margin: 0; background-color: #181818; background-attachment: fixed; background-repeat: no-repeat} div {hyphens: auto; text-align: justify; word-wrap: break-word; white-space: initial} img, video {margin-top: -7px; border-radius: 1%} img {image-rendering: high-quality; opacity: 1.4} p {font-family: monospace; text-shadow: 3px 4px 2px #000; color: #fff; font-size: 18px; line-height: 30px} .d {color: grey; text-align: left; line-height: 12px; letter-spacing: 0.6px; margin-bottom: 10px; padding-top: 8px; font-size: 12px} .error {line-height: 24px; font-size: 14px} .fix {position: fixed} .hide {display: none} .m {line-height: 28px; margin: 0; letter-spacing: 0.3px; scroll-margin-top: 40px; text-rendering: geometricPrecision} .globo, .sciss {font-size: 12px; color: transparent; text-shadow: 0 0 0 grey} .globo:after {content:"\1F310"} .reply {font-size: 15px; color: grey; line-height: 20px; letter-spacing: 0; margin: 0; padding-bottom: 10px} .w {background-color: #181818; opacity: 0.9; border: 2px double grey; border-radius: 8px} #box, #cloud {font-weight: 430; font-size: 16px; line-height: 28px; width: 94%; margin: 8px 12px} audio, #w2, #w3, #open {top: 50%; left: 50%; transform: translate(-50%, -50%)} #open {font-size: 64px; border: 2px double grey; border-radius: 6px; padding: 8px; background-color: #282828; opacity: 1.2} #w2, #w3 {font-family: monospace; text-shadow: 3px 4px 2px #000; color: #bbc; width: auto; height: auto; text-align: center; white-space: pre-wrap; padding: 12px; background-color: #282828; opacity: 0.9} #w2 {max-width: 80%; max-height: 74%; overflow-y: scroll} #w3 {padding: 0; border: none; margin: 0; left: 75%; font-size: 10px} #dbg {width: auto; right: 4%; top: 1.1%; font-size: 14px; border-radius: 4px; color: grey; padding: 5px 12px; letter-spacing: 0.8px; text-align: center; background-color: #222; border: 1px solid #303030} .sciss {font-size: 16px} .tag, .flog {border: 1px solid #303030; font-family: sans-serif-light; letter-spacing: 0.3px} .flog {border-radius: 7px; padding: 4px 8px; font-size: 18px; color: grey} .tag {display: inline-block; background: linear-gradient(to bottom right, #242424 1%, #181818); box-shadow: 0 1.5px #000; padding: 7px 22px; line-height: 28px; margin: 4px 8px 19px 4px; border-radius: 15px; font-size: 22px} .block {display: block} .blur {filter: blur(4px); opacity: 0.6} #cloud {color: grey; font-family: sans-serif-light; font-size: 14px} #tr {font-family: sans-serif-light} video {text-shadow: none; width: 100%} #trbox select {align: center; background: #181818; color: grey} .italic {font-style: italic} #quit {border-radius: 50%; border: 2px solid #eef; left: 81%; top: 41%; color: #dde; font-family: sans-serif-light; font-size: 36px; padding: 0 16px 8px 16px; opacity: 0.9; background-color: green} .hta {color: #eef} #quit:after {content:"x"} .imeta {margin: 1px; width: 100%} .up {margin-top: -26px} textarea {width: 100%; height: 16%}
+</style>
+<body>
+<!--
+
+ Quirky, the 1-file text parser written in JS.
+=====================================
+As it is oriented on mixed data representation,
+full qualified timestamps are crucial in feeds.
+Sure, it tries to find another ways, but feed's date
+layout may be: incomplete, absent, non-standart or represented with national calendar specific.
+As it depends on browser features, input compatibility may vary. As it just a parser it will loose some features with time. Except these notices it is less or more compatible with xml/html/json and binaries. It can be extended to support any text file, music notations, zip containers, pdf streams, 2d games, whatever, but i believe there are better alternativies.
+
+Support:
+ - news feeds (rss, rdf, atom);
+ - t.me (chan web pages);
+
+Partial support:
+ - ukrnet, suspilne, blackseanews;
+
+Optional support (browser specific):
+ - images:  jpeg, png, gif, webp;
+ - audio: wav, mp3, mp4, flac, ogg;
+ - video: mp4, webm;
+ - speechSynthesis (opts.tts==1);
+ - canvas.getContext("2d") (opts.bg==1);
+ - AudioContext (opts.aux==1);
+
+!-->
+<div id="trbox" class="hide"></div><div id="box"></div><div id="w2" class="w fix hide"></div><div id="w3" class="w fix hide"></div><div id="buf" class="hide"></div><input id="getf" type="file" multiple class="hide"><label for="getf" id="open" class="fix hide"></label><div id="dbg" class="fix hide"></div><div id="cloud" class="hide"></div><canvas id="canva" class="hide"></canvas><audio controls id="audio" class="hide fix"></audio><div id="quit" class="fix hide"></div>
+<script>
+
+/* Options (0: disabled; 1: enabled);
+
+ w        "yes" filter, const wF;
+ b         "not" filter, const bF, see Filters;
+ raw     extract links from html (see n htm);
+ max    show extended text from feeds;
+ img     embed feed's image links;
+ tts       activate text-to-speech;
+ aux      play midi ring on finish;
+ b64     embed base64 images into export;
+ tran     show translation widget;
+ time..  how tts will read item's date;
+ self      make feed from previously exported
+             (translated) page (then apply filter);
+ bg        0: simple text layout;
+              1: text decor and canvas art;
+              2: text decor;
+ dev      0: normal (0);
+              1: show all input files in hex ;
+              2: replace what/with and export;
+              3: extract feed links and export;
+              4: extract deflated streams from pdf.*/
+
+const filters = {w:0, b:0}; const opts = {raw:0, max:1, img:1, tts:0, aux:0, bg:1, b64:0, tran:0, dev:0, self:0}; const tts = {time:1, date:0, timedate:0, is:""};
+
+/* Aliases
+
+ cloud   tags;
+ dbg      top right info with timeout;
+ box       main content;
+ trbox    translate widget;
+ getf      filereader input;
+ buf       data in-dom-decoding;
+ open    label for getf;
+ w2        center info;
+ w3        w2 top right status indicator;
+ canva  canvas2d;
+ audio   html5 audio;
+ quit      stop audio ico.*/
+
+const cloud = gid("cloud"); const dbg = gid("dbg"); const box = gid("box"); const trbox = gid("trbox"); const getf = gid("getf"); const buf = gid("buf"); const open = gid("open"); const w2 = gid("w2"); const w3 = gid("w3"); const canva = gid("canva"); const audio = gid("audio"); const quit = gid("quit"); const hide = "hide"; const body = gt("body")[0];
+
+/* Strings
+
+ e0, er      errors;
+ mime     mime types;
+ def          input files signatures (text);
+ rss          set of feed links (see gestures).*/
+
+const e0 = "\nНемає файлів/записів\nщо відповідають "; const er = {r0:"!file\n", r1:"!rss\n", r2:"!tg\n", r3:"!un\n", r4: e0 +"умовам!", r5:"!ko\n", r6:"!su\n", r7:"!bs\n", r8:"!size = 0", r9:"!size > 24M", r10:"!atom\n", r11:"!rdf\n", r12: e0 + "фільтру!"}; const mime = {txt:"text/plain", html:"text/html", xml:"text/xml", jpg:"image/jpeg", png:"image/png", gif:"image/gif", mp4:"video/mp4", webm:"video/webm", mp3:"audio/mpeg", flac:"audio/flac", ogg:"audio/ogg", wav:"audio/wave", webp:"image/webp", pdf:"application/pdf"}; const def = {at:"<feed", bs:"blackseanews.net/all", un:"nt=\"UkrNet", ko:"щены. «ХЕРСОН О", rdf:"<rdf:RD", su:"nt=\"https://suspilne.media",   htm:"<html", n4:"norma4tech", ab:"ABYZ News Links", tg:"t=\"Telegram\""};
+
+/* Substitutions
+
+ sym1     symbol when opening cp1251 as utf8;
+ sym2     symbol when opening binary as utf8;
+ pd           item's header "date" string;
+ sciss      item's header "cutted" indicator;
+ aw, ae    item's header "globo" external link;
+ ps, pe     top part of item;
+ pt, pe      - - with tts and scrollinto support;
+ pb, pe     image;
+ pa, pq     bottom part of item;
+ pr, pq      - - clickable;
+ pf            cloud's bottom "active bf/wf" list.*/
+
+const sym1 = sc(65533); const sym2 = sc(8); const br ="<br>"; const br2 ="<br><br>"; const sciss = "<a id=\"scsxx\" class=\"sciss\"> ✂</a>";
+const aw = " <a class=\"globo\" href=\"";
+const ae = "\" target=\"_blank\"></a>";
+const pc = "<p class=";
+const pd = pc + "\"d\">";
+const pe = "\">";
+const ps = pc + "\"m";
+const pt = ps + "\" id=\"spc\" onclick=\"if (tts.is) {if (gid(\'scsxx\')) {ac(gid(\'ctxx\'),hide); dc(gid(\'scsxx\'),hide); gid(\'spc\').scrollIntoView({behavior: \'smooth\'});}; despk(); return} gid(\'spc\').scrollIntoView({behavior: \'smooth\'}); if (gid(\'scsxx\')) {dc(gid(\'ctxx\'),hide); ac(gid(\'scsxx\'),hide)} spk(\'spc\');\">";
+const pb = "<p><img src=\"";
+const pr = ps + " reply\" id=\"shw\" onclick=\"gid(\'shw\').innerHTML=\'";
+const pq = "\';\">";
+const pa = ps + " reply\" id=\"shw\" onclick=\"shw = gid(\'shw\'); ";
+const pf = pc + "\"flog" + pe;
+
+/* Declarations & definitions
+
+ isErr         state of error for w3 indicator;
+ idx            items index at process;
+ iAll            number of files to process;
+ iDone       number of processed files;
+ iarr           array of results, to filter then output;
+ darr          array of dates, to sort iarr/tarr;
+ tarr           array of types, binaries have type
+                  to avoid text operations on them;
+ tsx, tex    start/end x touches coordinate;
+ interval1  canvas2d redraw interval;
+ wx, wy     screen width/height;
+ pics          input mime subset of images;
+ vids          input mime subset of video;
+ auds         input mime subset of audio;
+ txts           input subset of txt mimes;
+ binmode  on mixed result run binita not finita;
+ YY..           date constants set by now().*/
+
+var isErr = 0; var idx = -1; var iDone = 0; var iAll;
+var iarr = []; var darr = []; var tarr = []; var tsx, tex; var interval1; const wx = screen.width; const hx = screen.height; const pics = mime.jpg + mime.png + mime.webp + mime.gif; const vids = mime.mp4 + mime.webm; const auds = mime.mp3 + mime.flac + mime.wav + mime.ogg + "audio/mp4"; const txts = mime.xml + mime.html; var binmode=0; var YY, MM, DD, hh, mm, ss, ms;
+
+/* Objects
+
+ voices   tts subsystem early definition;
+ dec1..    unicode/cyrillic/chiniese/arabic
+                input subsets for proper decoding.*/
+
+const voices = speechSynthesis.getVoices(); const dec1= new TextDecoder("utf-8");
+const dec2= new TextDecoder("windows-1251");
+const dec3= new TextDecoder("GBK");
+const dec4= new TextDecoder("windows-1256");
+
+ /* Filters
+
+ Rule syntax:     str1+str2-str3-str4;
+ Rule logic:        str1 && str2 && !str3 && !str4;
+ Filter syntax:    "Rule|Rule|Rule|Rule";
+ Filter order:       wF then bF;
+ wF/bF:               "Yes"/"No" filters;
+ cT:                      Tags filter (see Gestures);
+ Notice1:             bF shouldn't be empty
+                             when filters.b==1!;
+ Notice2:             Rules are lowercase.*/
+
+const wF = "херсон".split("|");
+const bF = "changeme".split("|");
+const cT = "дрон".split("|");
+
+/* Events:
+
+window.onload   startup setup;
+getf.onchange    files to open are selected;
+audio.onended   audio finishes*/
+
+window.onload = () => {
+ico(); now();  if (opts.aux==1) octave(); if (opts.tts==1) {speechSynthesis.cancel(); tts.is=""}; if (opts.bg==1) bgshow()}
+getf.onchange = (e) => {fread(); addbg()}
+audio.onended = (e) => {ac(audio,hide); dc(box,"blur")}
+quit.onclick = (e) => {audio.pause(); ac(audio,hide); dc(box,"blur"); ac(quit,hide)}
+canva.onclick = addbg;
+
+/* Gestures:
+
+ Tap double:  - magnify text content;
+ Tap single:   - top part read/stop (opts.tts:1);
+                        - top part show "cutted" text;
+                        - bottom part show more info;
+ Swipe left:    - before, show feed links, const rss;
+ Swipe left:    - after, tag cloud opening, const cT;
+ Swipe right:  - export data to html file.*/
+
+document.ondblclick = magnify;
+document.ontouchstart = (e) => {tsx=tx(e)}
+document.ontouchend= (e) => {tex=tx(e); if (tex<tsx-220) ftags(); if (tex>tsx+220) savefile()}
+
+/* Main functions:
+
+ fread        read to bytes, init thread for each file;
+ fparse      content-based redirect to processing:
+ frss           - - rss feeds (xml);
+ ftg             - - t.me chanpages (html);
+ fat             - - atom feeds (xml);
+ frdf           - - rdf feeds (xml);
+ fun            - - ukr.net local pages (html);
+ fsu            - - suspilne local pages (html);
+ fko            - - khersonline pages (obsolete);
+ fbs            - - blackseanews (html);
+ fn4            - - norma4 chatpage (html);
+ htm           - - unclassified pages (html);
+ fself          - - quirky's news pages (html);
+ fab            extract, export web links from
+                   abyznewslinks pages to bash file;
+ feed          extract, display, export feed links
+                   from web pages to bash file;
+ epilog       all done?  - run postprocessing:
+                   binita (mixed files) or finita (textual);
+ sortdate   apply substitutions for text data:
+                    (for texts tarr value not defined)
+                   shouldn't do that for binaries;
+                   then sort iarr/tarr by darr
+                   (items by date, types by date)
+ binita        run sortdate, applying filters, forming
+                   result output of mixed load (bin/text);
+ finita         do the same faster for text-only load;
+ wfilt, bfilt  apply "yes", "not" filters to iarr
+ tfilt            do the same when clicking on tag;
+ ftags         messing to form cloud output;
+ ftag           apply filter on iarr on tag click;
+ gtran         function from translation widget,
+                   where result langs can be defined,
+                   will connect to Web if opts.tran==1,
+                   will modify the dom to work proper.*/
+
+function fread() {
+const files = getf.files; iAll = files.length;
+w2say("Отримую з файлів (" +iAll+"):\n"+pth());
+for (let i=0; i<iAll; i++) {
+const r = new FileReader();
+r.readAsArrayBuffer(files[i]);
+r.fn=files[i].name; r.fs=files[i].size; r.mfs=Math.round(r.fs/1048576); r.mod=epoch(files[i].lastModified);
+let k = r.fn.lastIndexOf(".");
+r.ext=(k> -1) ? r.fn.slice(k+1,r.fn.length) : ""; r.ext=r.ext.toLowerCase();
+if (r.fs==0) {next(er.r8,r.fn); continue}
+if (r.fs<128) {next(er.r0,r.fn); continue}
+if (r.mfs>2048) {next(er.r9,r.fn); continue}
+r.onloadend = fparse} }
+
+async function fparse(e) { try { var meta, s, url; const o = e.target; const u = new Uint8Array(o.result); const ext = o.ext; const fs = o.fs; const mfs = o.mfs; const mod = o.mod; const file = o.fn;
+const mi = getmi();
+const info = [file,mi,fs,mod].join(" ");
+if (opts.dev==1) {fbin(u,file,mod); return}
+if (opts.dev==2) {
+const wht = "";
+const wth = "";
+frep(u,wht,wth); return};
+if (!mi) {epilog(); return}
+if (opts.dev==4 && mi==mime.pdf) {
+const p = await pdf(u,file); return}
+if (pics.includes(mi)) {bin(); pic(); return}
+if (vids.includes(mi)) {bin(); vid(); return}
+if (auds.includes(mi)) {bin(); aud(); return}
+if (mfs>20 ||!(txts.includes(mi))) {epilog(); return}
+s = dec(dec1.decode(u));
+const h = s.slice(0,1024);
+if (h.includes(sym2)) {epilog(); return}
+if (h.includes("ws-1251") || h.includes(sym1)) s = dec(dec2.decode(u));
+if (h.includes("encoding=\"GBK\"")) s = dec(dec3.decode(u));
+if (h.includes("ws-1256")) s = dec(dec4.decode(u));
+if (opts.self==1 && (h.includes("t=\"user") || h.includes("t=\"goo"))) {fself(s,file,info); return}
+if (h.includes(def.rdf) || h.includes("dc:date")) {frdf(s,file,info); return}
+if (h.includes("<rss") || h.includes("<rdf")) {frss(s,file,info); return}
+if (s.includes(def.tg)) {ftg(s,file,info); return}
+if (h.includes(def.at)) {fat(s,file,info); return}
+if (s.includes(def.un)) {fun(s,file,info); return}
+if (s.includes(def.su)) {fsu(s,file,info); return}
+if (h.includes(def.ko)) {fko(s,file,info); return}
+if (h.includes(def.bs)) {fbs(s,file,info); return}
+if (s.includes(def.n4)) {fn4(s,file,info); return}
+if (s.includes(def.ab)) {fab(s,file,info); return}
+if (h.includes(def.htm) && opts.raw==1 && opts.dev==3)
+{feed(s,file,mod,info); return}
+if (h.includes(def.htm) && opts.raw==1) {htm(s,file,mod,info); return} epilog();
+function getmi() {
+for (let i=0; i<20; i++) {
+if(u[i]==0x3c) if(u[i+1]==0x3f) if(u[i+2]==0x78)  if(u[i+3]==0x6d) return mime.xml;
+if(u[i]==0x3c) if(u[i+1]==0x72) if(u[i+2]==0x73)  if(u[i+3]==0x73) return mime.xml;
+if(u[i]==0x68) if(u[i+1]==0x74) if(u[i+2]==0x6d)  if(u[i+3]==0x6c) return mime.html;
+if(u[i]==0xFF) if(u[i+1]==0xD8) return mime.jpg;
+if(u[i]==0x89) if(u[i+1]==0x50) if(u[i+2]==0x4E)  if(u[i+3]==0x47) if(u[i+4]==0x0D) if(u[i+5]==0x0A) if(u[i+6]==0x1A) if(u[i+7]==0x0A) return mime.png;
+if(u[i]==0x66) if(u[i+1]==0x74) if(u[i+2]==0x79)  if(u[i+3]==0x70) if(u[i+4]==0x64) if(u[i+5]==0x61) if(u[i+6]==0x73) if(u[i+7]==0x68) return "audio/mp4";
+if(u[i]==0x66) if(u[i+1]==0x74) if(u[i+2]==0x79) if(u[i+3]==0x70) return mime.mp4;
+if (u[i]==0x49) if(u[i+1]==0x44) if(u[i+2]==0x33) return mime.mp3;
+if (u[i]==0xFF) if(u[i+1]==0xFB) return mime.mp3;
+if(u[i]==0x47) if(u[i+1]==0x49) if(u[i+2]==0x46) if(u[i+3]==0x38) if(u[i+4]==0x39) if(u[i+5]==0x61) return mime.gif;
+if(u[i]==0x66) if(u[i+1]==0x4C) if(u[i+2]==0x61)  if(u[i+3]==0x43) if(u[i+4]==0x00) if(u[i+5]==0x00) if(u[i+6]==0x00) if(u[i+7]==0x22) return mime.flac;
+if (u[i]==0x1A) if(u[i+1]==0x45) if(u[i+2]==0xDF) if(u[i+3]==0xA3) return mime.webm;
+if (u[i]==0x52) if(u[i+1]==0x49) if(u[i+2]==0x46) if(u[i+3]==0x46) if (u[i+8]==0x57) if(u[i+9]==0x45) if(u[i+10]==0x42) if(u[i+11]==0x50) return mime.webp;
+if (u[i]==0x57) if(u[i+1]==0x41) if(u[i+2]==0x56) if(u[i+3]==0x45) if (u[i+4]==0x66) if(u[i+5]==0x6D) if(u[i+6]==0x74) if(u[i+7]==0x20) return mime.wav;
+if(u[i]==0x4F) if(u[i+1]==0x67) if(u[i+2]==0x67)  if(u[i+3]==0x53) if(u[i+4]==0x00) if(u[i+5]==0x02) if(u[i+6]==0x00) if(u[i+7]==0x00) return mime.ogg;
+if(u[i]==0x25) if(u[i+1]==0x50) if(u[i+2]==0x44)  if(u[i+3]==0x46) return mime.pdf;
+} return ""}
+function doc(s) {iarr[idx] += pt + s + pa + pq + info; epilog()}
+function vid() {
+iarr[idx] += pd + "<video controls src=\"" + url + width(92) + pr +pq + info; epilog()}
+function pic() {
+if (opts.b64==1) {let r = new FileReader(); r.readAsDataURL(new Blob([u], {type: mi})); r.onloadend = function(e) {iarr[idx] += pb + e.target.result + width(92) + pa + pq + info; epilog()}; return} iarr[idx] += pb + url + width(92) + pa + pq + info; epilog()}
+function aud() { meta = (dec1.decode(u.subarray(0,16384)).includes("image/j")) ? subjpg() : ""; iarr[idx] += ps + " italic" + pe + "<a onclick=\"dc(audio,hide); audio.src=\'" + url + "\'; audio.play(); ac(box,\'blur\'); dc(quit,hide); \">" + file + "</a>" + pr + pq + meta + info + " <a href=https://duckduckgo.com/?q=" + file.replace(/ /g,"%20").replace(ext," ") + "lyrics&kp=-1&kl=us-en> Lyrics</a>"; epilog()}
+function geturl() {
+return getobj(new Blob([u], {type: mi}))}
+function width(p) {
+return "\" width=\"" + 0.01*p*wx + pe}
+function subjpg() {
+var from, to;
+for (let i=128; i<65535; i++) { if (u[i]==0xFF) if(u[i+1]==0xD8){from=i;break}}if(!from) return "";
+for (let i=from; i<524288; i++) {if (u[i]==0xFF) if(u[i+1]==0xD9) {to=i+2; break}} if (!to) return "";
+const meta = getobj(new Blob([u.subarray(from,to)], {type: "image/jpg"}));
+return "<img class=\"imeta\" src=\""+meta+"\">"}
+function sublink(s) {var a,b,c,d,st; var x=[];
+b=0; cycle(); while (a>0 && b>a) {
+st = cstr(s.slice(a+4,b)); if (c>0 && (c-b)<20) {x.push(adda(st,cstr(s.slice(c+9,d))).replace(/\\n|\\/g,""))} else {x.push(adda(st,st))} cycle()} return x.join(br2); function cycle() {a = s.indexOf("URI(",b); b = s.indexOf(")",a); c = s.indexOf("Contents(",b); d = s.indexOf(")",c)}}
+function bin() {
+url = geturl(u,mi); darr[++idx] = reldate(mod); tarr[idx]="b"; binmode=1; iarr[idx]=pd + mod + " "}
+}catch(e){epilog();(e[0]=="!")?ferr(e,file):gerr(e)}
+}
+
+async function pdf(u,file) { var a, b;
+var ab=[]; var arr=[]; const crlf = [0xD,0xA].join("");
+a=0; flatecycle(); while (a>0 && b>a) {
+ab.push(a); ab.push(b); a=b; flatecycle()}
+const x = await deflate();
+savetext(arr.join("\n — — — — — — — —\n"), file.replace(/[^a-z0-9]/gi,"")+".txt");
+
+function flatecycle() {
+for (let i=a; i<u.length; i++) {
+if (sbytes(u, i, i+12)=="/FlateDecode") {
+a=i; while (sbytes(u,a,a+6)!="stream") {a++}
+while (crlf.includes(u[a+6])) {a++} a+=6;
+b=a; while (sbytes(u,b,b+9)!="endstream" && sbytes(u,b,b+2)!="<<") {b++}
+while (crlf.includes(u[b-1])) {b--} return} } }
+
+async function deflate() {
+for (let i=0; i<ab.length; i+=2) {
+const p8 = u.subarray(ab[i],ab[i+1]);
+const s = await unarc(new Blob([p8]));
+if (s) arr.push(s)} return ""}
+
+async function unarc(blob) { try {
+const ds = new DecompressionStream("deflate");
+const bs = blob.stream().pipeThrough(ds);
+const b = await new Response(bs).blob();
+const s = await b.text(); return s;
+}catch(e){return ""}}
+}
+
+function frss(s,file,info) {
+var a, arr, b, st, sp, stitle, sdate, slink, scont, sfull, sdesc, slogo, simg;
+sp = getlogo(s.slice(0,2048));
+slogo = (sp) ? imgstr(sp,wx/8,"up") + br : "";
+sp = getinfo(s,"rss") + info;
+sinfo = (opts.img==1) ? slogo + sp : sp;
+s = getlast(s,"<channel");
+b=0; cycle(); if (a<0 || b<0) throw er.r1;
+while (a>0 && b>0) {
+st = s.slice(a, b);
+sp = gets(st,"<pubDate") || gets(st,"<pubdate");
+if (!sp || sp.length<19) {cycle(); continue}
+sp = sp.replace(/\]|<|!|\[|CDATA|>/g,"");
+if (sp.includes(" 24:")) {cycle(); continue}
+sdate = digdate(tzone(sp));
+if (sdate=="RangeError") {cycle(); continue}
+darr[++idx] = reldate(sdate);
+iarr[idx] = pd + sdate;
+simg = getimg(st);
+simg = (simg && opts.img==1) ? br + imgstr(simg,"100%") + br: "";
+sp = gets(st,"<link") || gets(st,"<guid");
+if (sp) slink = cstr(getlink(sp));
+if (slink) iarr[idx] += aw + slink + ae;
+stitle = cstr(clean(gets(st,"<title")));
+if (opts.max==1) {
+scont = gets(st,"<content:encoded");
+if (scont) scont = cstr(scont);
+sfull = gets(st,"<fulltext");
+if (!sfull) sfull = gets(st,"<yandex:full-text");
+if (sfull) sfull = cstr(sfull);
+sdesc = gets(st,"<description");
+if (sdesc) sdesc = cstr(clean(sdesc)).replace(stitle,"");
+if (sdesc || scont || sfull) stitle += ". ";
+stitle += sdesc || scont || sfull}
+if (!stitle || stitle == ". ") {cycle(); continue}
+if (slink.includes("espreso")) stitle = abc(stitle);
+arr = stitle.split(".");
+if (arr.length>4 && stitle.length>414) {
+stitle = arr.slice(0,3).join(".") + "<span id=\"ctxx\" class=\"hide\">" + arr.slice(3).join(".") + "</span>";
+iarr[idx] += sciss}
+iarr[idx] += pt + stitle + pr + simg + sinfo + pq + slink; slink = stitle = simg = sdesc = sdate = "";
+cycle()} epilog();
+function cycle() {a = s.indexOf("<item",b); b=s.indexOf("</item",a)}
+function clean(s) {return s.replace(" спершу з'явиться на"," -").replace(/Що відомо - читайте далі\.| Що відомо - читайте у матеріалі\.| Читайте у матеріалі\.| - новини Херсонщини і України|Новина доповнюватиметься…|Більше дивіться на нашому ютуб каналі |t\.me\/|apple|ВІДЕО+ФОТО|ІНФОГРАФІКА|фото:|ФОТО|ВIДЕО|КАРТИ|Повний текст новини/,"").replace(/ – дивіться у матеріалі Фактів ICTV| - читайте в матеріалі Фактів ICTV| – дивіться в матеріалі Фактів ICTV| - читайте детальніше на Фактах ICTV| - читайте на Фактах ICTV| – читайте на сайті Факти ICTV| — читайте у матеріалі Фактів ICTV| - дивіться у матеріалі Фактів ICTV| - детальніше у матеріалі Фактів ICTV| - у матеріалі Фактів ICTV| Подробиці – на сайті Факти ICTV\.| – читайте в матеріалі Фактів ICTV| – читайте у матеріалі Фактів ICTV| - подробиці на сайті Факти ICTV| — читайте на Фактах ICTV| - читайте детальніше в матеріалі Фактів ICTV| — чому так сталося читайте на Фактах ICTV| – у добірці від Фактів ICTV/," – Факти ICTV").replace(/…|\.\.\.|\,\.\.\./g,"").replace("..",".").trim()}
+function getlink(s) {return glast(s,"https://").split("?fbclid")[0].split("?utm_")[0].split("#utm_")[0].split("&utm_")[0]}
+}
+
+function ftg(st,file,info) {
+var a, b, x, y, stitle, sreply, sdate, slink, sinfo, s, arr;
+sinfo = getinfo(st,"tg") + info;
+st = sget(clean(st),"<body"); y=0; cycle();
+while (x>0) {
+if (!sdate || !stitle) {cycle(); continue}
+darr[++idx] = reldate(sdate);
+iarr[idx] = pd + sdate;
+if (slink) iarr[idx] += aw + slink + ae; 
+if (arr.length>4 && stitle.length>414) iarr[idx]+=sciss;
+iarr[idx] += pt + clean(stitle);
+if (sreply.length>2) {iarr[idx] += pr + sinfo + pq + clean(sreply).toLowerCase()+".."} else {iarr[idx] += pr + sinfo + pq + slink};
+cycle()} epilog();
+function cycle() {
+sdate=stitle=sreply=slink=""; arr=[];
+x = st.indexOf("-message",y);
+y = st.indexOf("</time>",x);
+if (x<0 || y<0) return;
+while (st.slice(y-26,y).includes("video_duratio")) {y = st.indexOf("</time>", y+1)}
+s = st.slice(x,y);
+a = s.lastIndexOf("-message_text\"");
+if (a>-1) {
+a = s.indexOf(">",a)+1;
+b = s.indexOf("</div",a);
+stitle = cstr(s.slice(a,b)).trim().replace(/ @[^]*| #[^]*| http[^]*|- t.me[^]*| t.me[^]*|Фото:[^]*/,"");
+stitle = filt(stitle);
+if (stitle.length>414) arr = stitle.split(".");
+if (arr.length>4) {
+stitle = arr.slice(0,3).join(".") + "<span id=\"ctxx\" class=\"hide\">" + arr.slice(3).join(".") + "</span>"}}
+a = s.lastIndexOf("-message_reply_text\"");
+if (a>-1) {
+a = s.indexOf(">",a)+1;
+b = s.indexOf("</div",a);
+sreply = cstr(s.slice(a,b)).trim().replace(/ @[^]*| #[^]*| http[^]*/,"").slice(0,99)}
+a = s.lastIndexOf(" href=\"")+7;
+if (a>-1) {
+b = s.indexOf("\"",a);
+slink = cstr(s.slice(a,b))}
+a = s.lastIndexOf("datetime=")+10;
+if (a<0) alert("ftg: no date??");
+b = s.indexOf("\"",a);
+sdate = digdate(cstr(s.slice(a,b)))}
+function clean(s) {return s.replace(/script/g,"").replace(/<>|<\/>/g,"").replace(/<br\/>/g," ").replace(/    |   |  /g," ").replace(/Надіслати новину|Звʼязок з нами|Підписатись|Повідомити новину|Підписатися|Підтримати|Підтримайте| на Спорт 24|Читайте у матеріалі\.|Фото нам надіслали у|Фото\/відео цікавих подій надсилайте нам у|Більше кадрів наслідків вибухів публікуємо в РЕЗЕРВ через ЦЕНЗУРУ|Сайт Facebook YouTube|ВІДЕО+ФОТОрепортаж|ФОТОрепортаж|ВIДЕО|СайтInstagramFacebookYouTubеWhatsApp| побачили якусь подію – одразу надсилайте нам в бот| маєте новину для нашого каналу\? надсилайте нам в бот -|◾| Зв’язатися з нами|За ситуацією по всій країні можна стежити тут –|побачили якусь подію, надсилайте нам в бот, опублікуємо -|побачили якусь подію – скоріш надсилайте нам в бот, опублікуємо| – дивіться у відео МОСТа на YouTube\.|apple|Сайт Fb X IG YT TT|СайтInstagramFacebookYouTube|Більше читайте на сайті:|Більше кадрів в нашому резерві|За вашим бажанням фінансово підтримати канал можна нижче|Про траєкторію польоту ракет повідомляють тут —|Фото\/відео подій надсилайте нам у|Відео нам надіслали у|Побачили цікаву подію — пишіть нам у|ТікТокFacebookInstagramX\(Twitter\)TelegramYouTubeСайт|Надсилайте нам фото\/відео подій у|⤵|Ваші цікаві фото\/відео надсилайте нам у |Telegram \/ Facebook \/ Сайт \/ Instagram \/ X/g,"").replace("Вгору \"Вгору\"","\"Вгору\"").replace("Стань другом МОСТа"," - МОСТ.")}
+function filt(s) {const a = "pinned".split("|"); for (let i=0; i<a.length; i++) {if (s.includes(a[i])) return ""} return s}
+}
+
+function fat(s,file,info) {
+var g, a, b, st, sp, stitle, sdate, slink, sinfo, simg;
+sp = getlogo(s.slice(0,2048));
+slogo = (sp) ? imgstr(sp,wx/8) + br : "";
+sp = getinfo(s,"atom") + info;
+sinfo = (opts.img==1) ? slogo + sp : sp;
+b = 0; cycle(); if (a<0 || b<0) throw er.r10;
+while (a>0 && b>0) {
+st = s.slice(a,b);
+sp = gets(st,"<updated");
+if (!sp) sp = gets(st,"<published");
+if (!sp || sp.length<19) {cycle(); continue}
+sp = sp.replace(/\]|<|!|\[|CDATA|>/g,"");
+sdate = digdate(tzone(sp));
+darr[++idx] = reldate(sdate);
+iarr[idx] = pd + sdate;
+sp = tagin(st,"link","href");
+slink = (sp) ? cstr(sp) : gets(st,"<id");
+if (slink) iarr[idx] += aw + slink + ae;
+sp = gets(st,"<title");
+if (sp) stitle = cstr(sp);
+if (!sp) stitle = cstr(st);
+if (!stitle) {cycle(); continue}
+simg = getimg(st);
+simg = (simg && opts.img==1) ? br + imgstr(simg,wx/1.6) + br: "";
+iarr[idx] += pt + stitle + pr + sinfo + simg + pq + slink;
+sdate = slink = stitle = "";
+cycle()} epilog(); function cycle() {
+a=s.indexOf("<entry",b); b=s.indexOf("</entry",a)}
+}
+
+function frdf(s,file,info) {
+var g, a, b, st, sp, stitle, sdate, slink, sinfo, slogo;
+sp = getlogo(s.slice(0,2048));
+slogo = (sp) ? imgstr(sp,wx/8) + br : "";
+sp = getinfo(s,"rdf") + info;
+sinfo = (opts.img==1) ? slogo + sp : sp;
+s = chop(s,"</channel","</rdf");
+b = 0; cycle(); if (a<0 || b<0) throw er.r11;
+while (a>0 && b>0) {
+st = s.slice(a,b);
+sp = gets(st,"<dc:date") || gets(st,"<pubDate") || gets(st,"<pubdate");
+if (!sp || sp.length<9) {cycle(); continue}
+sdate = digdate(tzone(sp));
+darr[++idx] = reldate(sdate);
+iarr[idx] = pd + sdate;
+sp = gets(st,"<link");
+if (sp) slink = cstr(sp);
+if (slink) iarr[idx] += aw + slink + ae;
+simg = getimg(st);
+simg = (simg && opts.img==1) ? br + imgstr(simg,wx/1.6) + br: "";
+sp = gets(st,"<title");
+if (sp) stitle = cstr(sp);
+if (!stitle) {cycle(); continue}
+iarr[idx] += pt + stitle + pr + sinfo + simg + pq + slink;
+sdate = stitle = simg = "";
+cycle()} epilog(); function cycle() {
+a=s.indexOf("<item",b); b=s.indexOf("</item",a)}
+}
+
+function fun(s,file,info) {
+var a, b, c, d, st, sp, sdate, slink, slnk, stitle, sinfo;
+sp = getlogo(s.slice(0,8192));
+slogo = (sp) ? imgstr(sp,wx/8) + br : "";
+sp = getinfo(s,"ukrnet") + info;
+sinfo = (opts.img==1) ? slogo + sp : sp;
+s = chop(s,"created_at","update-feed");
+b = 0; cycle(); if (a<0 || b<0) throw er.r3;
+while (a > -1 && b > -1) {
+st = s.slice(a,b);
+sp = cut("at\":", 4, 0);
+if (!sp) {cycle(); continue}
+sdate = epoch(sp*1000);
+if (!sdate) {cycle(); continue}
+darr[++idx] = reldate(sdate);
+iarr[idx] = pd + sdate;
+slnk = "https://ukr.net"+cut("link", 7, 1).replace(/\\/g,"");
+slink = cut("link_original", 16, 1).replace(/\\/g,"");
+stitle = cut("title", 8, 1).replace(/\\/g,"");
+if (slink) iarr[idx] += aw + slink + ae;
+if (stitle) iarr[idx] += pt + stitle + pr + sinfo + pq + slnk;
+sdate = slink = stitle = "";
+cycle()} epilog(); function cycle() {
+a = s.indexOf("article",b); b = s.indexOf("}}",a)} function cut(s, k, n) {let x = st.indexOf(s);
+if (x>0) return st.slice(x+k, st.indexOf(",\"",x)-n); return ""}
+}
+
+function fsu(s,file,info) {
+var a, b, c, d, sq, sp, sdate, slink, stitle, sinfo, slogo;
+sp = getlogo(s.slice(0,8192));
+slogo = (sp) ? imgstr(sp,wx/1.4) + br : "";
+sp = getinfo(s,"suspilne") + info;
+sinfo = (opts.img==1) ? slogo + sp : sp;
+a = s.indexOf("<article");
+b = s.lastIndexOf("l-action-link");
+if (a>0 && b>0) s = s.slice(a,b);
+b = 0; cycle(); if (a<0 || b<0) throw er.r6;
+while (a > -1 && b > -1) {
+st = s.slice(a,b);
+sp = btag(st,"datetime");
+if (!sp) {cycle(); continue}
+sdate = digdate(sp);
+darr[++idx] = reldate(sdate);
+iarr[idx] = pd + sdate;
+slink = btag(st,"href");
+if (slink) iarr[idx] += aw + slink + ae;
+c = st.indexOf("<span");
+d = st.indexOf("</span",c);
+stitle = cstr(st.slice(c,d));
+simg = getimg(st);
+simg = (simg && opts.img==1) ? br + imgstr(simg,wx/1.4) + br: "";
+iarr[idx] += pt + stitle + pr + sinfo + simg + pq + slink;
+cycle()} epilog(); function cycle() {
+a=s.indexOf("<artic",b); b=s.indexOf("</artic",a)}
+}
+
+function fko(s,file,info) {
+var a, b, c, d, st, sdate, slink, stitle, sinfo;
+st = getinfo(s,"khersonline");
+sinfo = (opts.max!=1) ? st : st + info;
+s = chop(s,"newsfeed","lastnews");
+b = 0; cycle(); if (a<0 || b<0) throw er.r5;
+while (a > -1 && b > -1) {
+st = clean(s.slice(a,b));
+c = st.indexOf("href=")+6; d = st.indexOf("\"",c);
+slink = cstr(st.slice(c,d));
+c = st.indexOf("_date")+7; d = st.indexOf("<",c);
+sdate= cstr(st.slice(c,d)).replace(/\//g,".")+"."+YY;
+darr[++idx] = reldate(sdate);
+iarr[idx] = pd + sdate + aw + slink + ae;
+stitle = cstr(st.slice(d+6,b));
+iarr[idx] += pt + stitle + pr + sinfo + pq + slink;
+cycle()} epilog(); function cycle() {
+a=s.indexOf("<a",b); b=s.indexOf("</a",a)} function clean(s) {
+return s.replace(/    |&nbsp;/g,"")}
+}
+
+function fbs(s,file,info) {
+var a, b, c, d, sq, st, sdate, slink, stitle, sinfo, slogo;
+slogo = getlogo(s.slice(0,1024));
+if (slogo) slogo = "<img src=" + slogo + " width="+ screen.width/8 + "> " + br;
+sq = getinfo(s,"blackseanews");
+sinfo = (opts.max!=1) ? sq : slogo + sq + info;
+s = chop(s,"main-news-list","page-item");
+b = 0; cycle(); if (a<0 || b<0) throw er.r7;
+while (a > 0 && b > 0) { sq = s.slice(a,b);
+c = sq.indexOf("__date date")+13;
+d = sq.indexOf("</span>",c);
+st = cstr(sq.slice(c,d)).replace(/ /g,"");
+sdate = st.slice(0,5)+" "+st.slice(5);
+darr[++idx] = reldate(sdate);
+c = sq.indexOf("href=")+6;
+d = sq.indexOf("\"",c);
+slink = cstr(sq.slice(c,d));
+iarr[idx] = pd + sdate + aw + slink + ae;
+c = sq.indexOf(">",c);
+d = sq.indexOf("</a>",c);
+stitle = cstr(sq.slice(c,d)).trim();
+iarr[idx] += pt + stitle + pr + sinfo + pq + slink;
+cycle()} epilog(); function cycle() {
+a = s.indexOf("news-list-item",b);
+b = s.indexOf("__region",a)}
+}
+
+function fn4(st,file,info) {
+var g, a, b, s, sp, sdate, slink, stitle;
+b = 0; cycle(); if (a<0 || b<0) throw er.r0;
+while (a>0 && b>0) {
+s = st.slice(a,b);
+sp = bytag(s,"date");
+if (!sp || sp.length<10) {cycle(); continue}
+sdate = digdate(tzone(sp));
+darr[++idx] = reldate(sdate);
+slink = "https://chat.norma4.tv";
+iarr[idx] = pd + sdate + aw + slink + ae;
+g = s.indexOf("/span> &");
+iarr[idx] += ps + pe + cstr(s.slice(g+14));
+cycle()} epilog(); function cycle() {
+a=st.indexOf("<div class=\"row\">",b); b=st.indexOf("</div",a)}
+}
+
+function htm(st, file, mod, info) {var lnks="";
+var a, b, g, s, x, slink, stitle, txt, drop;
+const sinfo = getinfo(st,"rss") + info;
+const titles = []; const links = [];
+const sbase = getbaseurl(st.slice(0,16384));
+alert(sbase);
+st = sget(st,"<body");
+darr[++idx] = reldate(mod);
+iarr[idx] = pd + mod + " " + ps + pe;
+a=b=0; cycle(); while (a>0) {
+s = st.slice(a,b);
+stitle = cstr(s.replace(/>/g,"> ")).trim();
+slink = btag(s,"href");
+if (sbase && slink[0]=="/") slink = sbase + slink;
+slink = slink.replace(/\/\//g,"/").replace("https:/","https://").replace("http:/","http://");
+if (slink[0] !== "h" || !slink) {cycle(); continue}
+drop = "/author/|/authors/".split("|");
+for (let i=0; i<drop.length; i++) {
+if (slink.includes(drop[i])) {slink=""; break}}
+if (!slink) {cycle(); continue}
+for (let i=0; i<links.length; i++) {
+if (slink==links[i]) {slink=""; break}}
+if (!slink) {cycle(); continue}
+links.push(cstr(slink));
+if (!stitle) stitle = gtag(s,"title") || gtag(s,"alt");
+if (stitle && stitle.length<16) {cycle(); continue}
+if (!stitle) stitle = slink;
+stitle = clean(stitle);
+x= stitle.toLowerCase(); drop = "telegram|join|subscribe|@|facebook|instagram|youtube|twitter|donate|download|terms &|design by|advertise|terms and|{{|do not sell|sign up".split("|");
+for (let i=0; i<drop.length; i++) {
+if (x.includes(drop[i])) {x=""; break}}
+for (let i=0; i<titles.length; i++) {
+if (x==titles[i]) {x=""; break}}
+if (!x) {cycle(); continue}
+titles.push(x);
+if (filters.w==1 && filters.b==1) {
+txt = wFilt(sresult()); if (txt) txt = bFilt(txt);
+if (txt) iarr[idx] += txt}
+if (filters.w==1 && filters.b==0) {
+txt = wFilt(sresult()); if (txt) iarr[idx] += txt}
+if (filters.w==0 && filters.b==1) {
+txt = bFilt(sresult()); if (txt) iarr[idx] += txt}
+if (filters.w==0 && filters.b==0) {
+iarr[idx] += sresult()}
+cycle()} iarr[idx] += lnks + pa + pe + file, epilog();
+function sresult() {return "<a class=\"block hta\" href=" + slink +" target=\"_blank\">" + stitle + "</a>" + br} function clean(s) {return s.replace(/https:\/\/|http:\/\/|www|\/\/--|\¬/,"")} function cycle() {a = st.indexOf("<a ",b); b = st.indexOf("</a>",a)}
+}
+
+function fself(st,file,info) {var a, b, c, d, sp, ar, sdate, stitle, slink, txt; 
+st = sget(st,"<body");
+var sresult = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><rss version=\"2.0\"><channel><title>Custom translated content</title>\n";
+b=0; cycle(); while (a>0 && b>0) {
+s = st.slice(a, b); ar = cstr(s).slice(0,14).split(" ");
+sdate = "20" + ar[1].split(".").reverse().join("-") + "T" + ar[0] + ":00+03:00";
+c = st.indexOf("<p class=\"m",a);
+d = st.indexOf("/p><p class",c)
+stitle = cstr(st.slice(c,d));
+slink = tagin(s,"a class=\"globo\"","href");
+txt = "<item>\n<title>" + stitle + "</title>\n<link>" + slink + "</link>\n<pubDate>" + sdate + "</pubDate>\n</item>\n";
+if (filters.w==1) txt = wFilt(txt);
+if (filters.b==1 && txt) txt = bFilt(txt);
+if (!txt) {cycle(); continue}
+sresult += txt; cycle()}
+sresult += "</channel></rss>";
+savetext(sresult,file+".xml");
+function cycle() {
+a = st.indexOf("<p class=\"d\"",b);
+b = st.indexOf("</p><p class=\"d\"",a);
+if (b<0) b = st.indexOf("</p>",a)}
+}
+
+function fab(s,file,info) {
+var a, b, st, sp, stitle, slink, sbase, arr;
+const sdom = file.split("-")[0];
+var sresult = "#!/bin/bash\n## get html subdata from abyznewslinks html data\ncd /storage/emulated/0/pub/www/abyz-html\n\nmkdir " + sdom + "\ncd " + sdom + "\n";
+b=0; cycle(); if (a<0 || b<0) return;
+while (a>0 && b>0) {
+st = s.slice(a, b+4);
+sp = gets(st,"<a");
+if (sp) stitle = cstr(sp).toLowerCase().replace(/ |\'|\"|\‘|\‘|\[|\]|\(|\)|\(|\)|\+|\*|\.|\,|\:/g,"");
+sp = cstr(intag(st,"href"));
+if (!sp||sp.slice(0,4)!="http") {cycle(); continue}
+slink = sp.replace("http:","https:");
+sbase = slink.replace("https://","").split("/")[0];
+arr = sbase.split(".");
+if (arr.length>2) sbase = arr[1];
+slink = "\"" + slink + "\"";
+if (sresult.includes(sbase) || stitle=="home" || slink.includes(".bbc.") || slink.includes(".dw.") || slink.includes(".reuters.") || slink.includes(".google.") || slink.includes("voa.com") || slink.includes(".ru/") || slink.includes("/ru.") || slink.includes("/ru/") || slink.includes("/rus/") || slink.includes("/russian")) {cycle(); continue}
+sresult += "wget -4 --timeout=8 --tries=1 --no-check-certificate -O " + sdom + "-" + stitle + ".txt " + slink + " 2>>log.txt\n";
+cycle();
+} savetext(sresult, sdom+"-abyz.txt");
+function cycle() {
+a = s.indexOf("<a ",b); b = s.indexOf("</a",a)}
+} 
+
+function getbaseurl(s) {var sp, sbase;
+sp = tagin(s,"base","href");
+if (!sp || sp.slice(0,4)!="http") sp = tagin(s,"meta property=\"og:url\"","content");
+if (!sp || sp.slice(0,4)!="http") sp = tagin(s,"link rel=\"canonical\"","href");
+if (!sp || sp.slice(0,4)!="http") sp = tagin(s,"link rel=\"shortlink\"","href");
+if (!sp || sp.slice(0,4)!="http") sp = tagin3(s,"ld+json","url");
+sbase = (sp.slice(0,4)=="http") ? sp : "";
+return sbase}
+
+var feeds=""; var domain;
+function feed(s, file, mod, info) {
+var sname, sp, st, sq, slink; var lnks="";
+const sdom = file.split("-")[0];
+domain = sdom;
+const sinfo = br + getinfo(s,"rss") + info;
+const sbase = getbaseurl(s.slice(0,16384));
+a=s.split(" ");
+for (let i=0; i<a.length; i++) {
+if (a[i].includes("href") && a[i].length<256 && (a[i].includes("rss") || a[i].includes("xml") || a[i].includes("feed")) && !(a[i].includes("rpc") || a[i].includes("json") || a[i].includes("utm_") || a[i].includes("feedback") || a[i].includes("omment") || a[i].includes("feedburner") || a[i].includes(".ru.") || a[i].includes(".ru/") || a[i].includes("/ru.") || a[i].includes("/ru/") || a[i].includes("wlw") || a[i].includes("sitemap") || a[i].includes("?ref=") || a[i].includes("blog") || a[i].includes("embed") || a[i].includes("author") || a[i].includes("wp-") || a[i].includes("plugin") || a[i].includes("component") || a[i].includes("home") || a[i].includes("feedView") || a[i].includes(".svg#") || a[i].includes("verss") || a[i].includes(".css") || a[i].includes("search") || a[i].includes("base64")) && !(lnks.includes(a[i]) || sinfo.includes("maxbet") || sinfo.includes("WIN ") || sinfo.includes("77bet") || sinfo.includes("8kbet") || sinfo.includes("#Top") || sinfo.includes("33win") || sinfo.includes("Game") || sinfo.includes("Casino") || sinfo.includes(" game") || sinfo.includes("%") || sinfo.includes("Bonus ") || sinfo.includes(" GAMES ") || sinfo.includes("Bet "))) {
+sp = cstr(a[i].replace(/\\/g,""));
+sq = clean(sp);
+if (sq[0]=="/" && !sbase) feeds += "\n\n#ADDME\n#";
+if (sq[0]=="/") sq = (sbase + sq);
+sname = sdom + "-" + sq.replace(/https|http|rm|www/g,"").replace(/[^a-z0-9]/gi,"").slice(0,128);
+st = sp.slice(-5);
+//alert("sp=|" + sp + "|\n" + "sq=|" + sq + "|\n" + "st=|" + st + "|\n");
+feeds +="wget -4 --timeout=8 --tries=1 --no-check-certificate -O \"" + sname + ".txt\" \"" + sq + "\" 2>>log.txt\n\n";
+lnks += sp + br}}
+if (!(cstr(lnks).trim())) {epilog(); return}
+darr[++idx] = reldate(mod);
+iarr[idx] = ps + pe + lnks + pa + pe + sbase + sinfo; epilog();
+function clean(s) {var a, b;
+a = s.indexOf("href=\"") + 6;
+if (a>5) {b = s.indexOf("\"",a);
+if (b>0) return cstr(s.slice(a,b))}
+a = s.indexOf("href=\'") + 6;
+if (a>5) {b = s.indexOf("\'",a);
+if (b>0) return cstr(s.slice(a,b))}
+a = s.indexOf("href=\”") + 6;
+if (a>5) {b = s.indexOf("\”",a);
+if (b>0) return cstr(s.slice(a,b))}
+return s}
+}
+
+function epilog() {iDone++; w2upd();
+if (feeds && iDone==iAll) {feeds = "#!/bin/bash\n## get xml subdata from html data\ncd /storage/emulated/0/pub/www/abyz-xml\nmkdir " + domain + "\ncd " + domain + "\nrm -f *\n\n" + feeds; savetext(feeds,domain)}
+if (iDone==iAll){(binmode==0)?finita():binita()}}
+
+function sortdate(n) {var s;
+for (let i=0; i < n; i++) {
+if (!tarr[i]) iarr[i] = iarr[i].replace(/spc/g,spc(i)).replace(/ctxx/g,ctxx(i)).replace(/scsxx/g,scsxx(i)).replace(/shw/g,shw(i))}
+for (let i=0; i < n; i++) {
+for (let j=0; j < n; j++) {
+if (darr[j] > darr[i]) {
+s = iarr[i]; iarr[i] = iarr[j]; iarr[j] = s;
+s = darr[i]; darr[i] = darr[j]; darr[j] = s;
+s = tarr[i]; tarr[i] = tarr[j]; tarr[j] = s}}}
+return iarr.reverse();
+function spc(i) {return "spc"+i}
+function ctxx(i) {return "ctxx"+i}
+function scsxx(i) {return "scsxx"+i}
+function shw(i) {return "shw"+i}}
+
+function binita() { try {
+var s =""; var txt;
+if (iarr.length == 0) throw er.r4;
+sortdate(iarr.length);
+for (let i=0; i< iarr.length; i++) {
+if (tarr[i] || (filters.w==0 && filters.b==0)) {s += iarr[i]; continue}
+if (filters.w==0 && filters.b==1) {
+txt = bFilt(iarr[i]); if (txt) s += txt}
+if (filters.w==1 && filters.b==1) {
+txt = wFilt(iarr[i]); if (txt) txt = bFilt(txt);
+if (txt) s += txt; continue}
+if (filters.w==1 && filters.b==0) {
+txt = wFilt(iarr[i]); if (txt) s += txt}
+}
+box.innerHTML += s;
+let av = gt("video"); for (let i=0; i< av.length; i++) {
+av[i].onloadedmetadata = function() {this.currentTime = 10} } w2hide(); bgset(); bipOk(); if (opts.tran==1) dc(trbox,hide);
+}catch(e){if (e.includes("!")) {
+w2say("\n"+e+"\n"); isErr = 1; return} gerr(e)}
+}
+
+function finita() { try {
+if (iarr.length==0) throw er.r4;
+const o = sortdate(iarr.length);
+if (filters.b==0 && filters.w==0) {
+fix(iarr); return}
+if (filters.b==1 && filters.w==0) {
+const b = o.filter(bFilt);
+chk(b); fix(b); return}
+const w = o.filter(wFilt);
+if (filters.b==0 && filters.w==1) {
+chk(w); fix(w); return}
+if (filters.b==1 && filters.w==1) {
+const wb = w.filter(bFilt);
+chk(wb); fix(wb); return}
+function fix(a) {box.innerHTML += a.join(""); w2hide(); bgset(); bipOk(); if (opts.tran==1) dc(trbox,hide); if (filters.b==1 || filters.w==1) dsay(a.length+"/"+iarr.length)}
+function chk(a) {if (a.length==0) throw er.r12}
+}catch(e){if(e.includes("!")) {
+w2say(e+"\n"); isErr = 1; return} gerr(e)}
+}
+
+var activewf = [];
+function wFilt(s) {var match, wfrule;
+s = s.toLowerCase();
+let p = bufdec(s).toLowerCase();
+for (let i=0; i< wF.length; i++) {match=0; wfrule="";
+let incl = wF[i].split("-")[0];
+incl = incl.split("+");
+let excl = wF[i].split("-")[1];
+if (excl) excl = excl.split("-");
+for (let j=0; j< incl.length; j++) {
+if (p.includes(incl[j])) {match++; wfrule+=incl[j];
+if (excl) {for (let k=0; k< excl.length; k++) {
+if (p.includes(excl[k])) {match--; return}}}
+if (match==incl.length) {if (!(activewf.some((val) => val==wfrule))) activewf.push(wfrule); return s}}
+}}}
+
+var activebf = [];
+function bFilt(s) {var match, bfrule;
+let p = bufdec(s).toLowerCase();
+for (let i=0; i< bF.length; i++) {match=0; bfrule="";
+let incl = bF[i].split("-")[0];
+incl = incl.split("+");
+let excl = bF[i].split("-")[1];
+if (excl) excl = excl.split("-");
+for (let j=0; j< incl.length; j++) {
+if (p.includes(incl[j])) {match++; bfrule+=incl[j];
+if (excl) {for (let k=0; k< excl.length; k++) {
+if (p.includes(excl[k])) {match--; return s}} }
+if (match==incl.length && match!=0) {if (!(activebf.some((val) => val==bfrule))) activebf.push(bfrule); return}}
+}} return s}
+
+function tFilt(s) {var match=0;
+let p = bufdec(s).toLowerCase();
+let incl = rule.split("-")[0];
+incl = incl.split("+");
+let excl = rule.split("-")[1];
+if (excl) excl = excl.split("-");
+for (let i=0; i< incl.length; i++) {
+if (p.includes(incl[i])) {match++;
+if (excl) {for (let j=0; j< excl.length; j++) {
+if (p.includes(excl[j])) {match--; return}}}}
+if (match==incl.length) return s}}
+
+var rule, alltag;
+function ftags() {
+if (box.innerHTML) {
+cloud.innerHTML = "<a class=\"tag\" onclick=\"ac(cloud,hide); dc(box,hide);\">Всі</a>";
+for (let i=0; i< cT.length; i++) {
+ac(box,hide); dc(cloud,hide);
+cloud.innerHTML += "<a class=\"tag\" onclick=\"ftag(\'"+cT[i]+"\');\">"+cT[i].split("+")[0]+"</a>"}; if (activebf.length>0 || activewf.length>0) cloud.innerHTML += pf + "<b>active bf:</b> " + activebf.join(", ") + br + pf + "<b>active wf:</b> " + activewf.join(", ") + br;  
+alltag = cloud.innerHTML; return}
+if (!cloud.innerHTML) {
+cloud.innerHTML = "<a class=\"tag\" onclick=\"ac(cloud,hide); dc(box,hide); ico();\">Назад</a>";
+for (let i=0; i< rss.length; i++) {
+cloud.innerHTML += "<a class=\"block tag\" href=\""+rss[i]+"\" download>"+rss[i]+"</a>"}
+dc(cloud,hide); ac(box,hide); icohide()}}
+
+function ftag(s) {rule = s;
+const t = iarr.filter(tFilt);
+if (t[0]) {ac(dbg,hide); cloud.innerHTML = "<a class=\"tag\" onclick=\"cloud.innerHTML = alltag;\">Всі теги</a>"; cloud.innerHTML += t.join(""); bgset()}
+if (!t[0]) dsay("Не знайдено")}
+
+/* Routine functions:
+
+ octave   fill up array of octaves in Hz;
+ bip          setup and run oscillator;
+ bipOk     call beep subsystem for "ok" bell;
+ getlast   extract data between Tag (last) in Text,
+                 return data or Text;
+ glast       found last position of String in Text,
+                 return data from there or Text;
+ gets        extract data between Tag in Text,
+                 return data or none;
+ sget        extract data between Tag in Text,
+                 return data or Text;
+ gline       extract Field data in " in tag in Text,
+                 return data or none (not in use);
+ btag        same as gline + cstr + trim;
+ gtag        extract Field data in ' or " in tag in Text,
+                 return data or none;
+ intag       extract Field data in " in tag in Text,
+                 return data or sh*t;
+ tagin       extract Field data in ' or " in tag in Text,
+                 return data or none (accurate);
+ tagin3     extract Field data in " in json Text,
+                 return data or none;
+ bytag      extract data between tag with Field
+                  in Text, return data or none or sh*t;
+ chop       extract data between 2 strings in Text,
+                  return data or Text;
+ chops     extract data between 2 strings in Text,
+                  return data or none;
+ abs          tries to recover some feeds with lost
+                  spaces before capital letters;
+ addbg     take screenshot from canvas, clear
+                  canvas, set body static background;
+ arr2hex   translate array of bytes to hex string;
+ bgset       apply box css decor if (opts.bg!=0);
+ bgshow   init canvas and set redraw interval;
+ bufdec    transform text through buf in filters;
+ cstr          try to "disarm" a string by excluding;
+ dec          replace some html encoding by chars;
+ dsay        show dbg message with timeout;
+ dhide       hide dbg;
+ digdate   transform date string to a local value,
+                  recombine it to the quirky style;
+ epoch      do the same for epoch date string;
+ fbin          show head/tail of file as hex, devopts;
+ frep          simple replacement, devopts;
+ ferr           show file error through w2;
+ gerr          show general error through box;
+ sbytes     translate bytes to string;
+ getcss     get style property of an element;
+ getimg     get weblink of image from feed item;
+ getlogo   get site logo from feed or page;
+ getinfo     get general info from input file tags;
+ gn             get random number N or NN;
+ ico            show start phase icons;
+ icohide    hide them back on progress;
+ imgstr      return complete img tag string;
+ magnify   change sizes on double click;
+ now          set current date/time variables;
+ pth            shows system path of quirky;
+ reldate     convert date string to number criteria;
+ savefile    export all page content to file;
+ savetext  export string variable to file;
+ tzone        convert few timezones to hour shift;
+ w2say      show a msg in w2, update layout;
+ w2set       fix w2 geometry to fit content;
+ w2upd     same and update w3 indicator;
+ w2show   unhide w2, w3; fix geometry;
+ w2hide    hide w2, w3;
+ zoom       change css sizes through magnify().*/
+
+var oct = []; const cx = new AudioContext();
+const cm = cx.createDynamicsCompressor();
+function octave() {oct = [16.351, 17.324, 18.354, 19.445, 20.601, 21.827, 23.124, 24.499, 25.956, 27.5, 29.135, 30.868]; for (var i=2; i<=512; i=2*i) {
+for (var j=0; j<12; j++) {oct.push(i*oct[j])}} }
+
+function bip(seq) {
+const g = cx.createGain(); g.gain.value=0.01;
+const o = cx.createOscillator(); o.type="sin"; o.connect(g).connect(cm).connect(cx.destination);
+setTimeout(function() {
+g.gain.linearRampToValueAtTime(0, cx.currentTime + seq[1]*0.003);
+o.frequency.value=oct[seq[0]]; o.start(0); setTimeout(function() {o.stop(); g.disconnect(cm); o.disconnect(g)}, seq[1])
+},seq[2]) }
+
+function bipOk() {if (opts.aux==1) {
+bip([30,50,50]); bip([60,200,200]); bip([74,200,400]); bip([76,200,500])} }
+
+function getlast(s, tag) {let a = s.lastIndexOf(tag); let b = s.indexOf(tag.replace("<","</"), a+1);
+if (a>-1 && b>-1) return s.slice(a,b); return s}
+
+function glast(s, st) {let a = s.lastIndexOf(st);
+if (a>-1) return s.slice(a); return s}
+
+function gets(s, tag, p=0) {
+let a = s.indexOf(">",s.indexOf(tag,p)) + 1;
+let b = s.indexOf(tag.replace("<","</"),a + 1);
+if (a > -1 && b > -1) return s.slice(a, b); return ""}
+
+function sget(s, tag, p=0) {
+let a = s.indexOf(">",s.indexOf(tag,p)) + 1;
+let b = s.indexOf(tag.replace("<","</"),a + 1);
+if (a > -1 && b > -1) return s.slice(a, b); return s}
+
+function gline(s,tag,x="\"",n=2) {let a = s.indexOf(tag+"=")+tag.length+n; if (a>tag.length+n) return s.slice(a,s.indexOf(x,a)); return ""}
+
+function gtag(s,tag) {let a = s.indexOf(tag+"=")+tag.length+2; let b = s.indexOf("\"", a); let c = s.indexOf(sc(39),a); if (c>0&&(c<b||b<0)) {b=c; return cstr(s.slice(a,b)).trim()} return ""}
+
+function btag(s,tag) {var a, b; a = s.indexOf(tag+"="); if (a>0) {a+=tag.length+2; b = s.indexOf("\"", a)} if (b>0) return cstr(s.slice(a,b)).trim(); return ""}
+
+function intag(s,q) {let x=s.indexOf(q+"=\"")+ q.length + 2; return s.slice(x, s.indexOf("\"",x))}
+
+function tagin(s,tag,field) {var a, b;
+a = s.indexOf("<"+tag);
+if (a>0) b = s.indexOf(">",a);
+if (b>0) {s = s.slice(a,b);
+a = s.indexOf(field+"=")+field.length+2;
+if (a>field.length+1) b = s.indexOf("\"",a);
+if (b<0) b = s.indexOf("\'",a);
+if (b>0) return cstr(s.slice(a,b))}
+return ""}
+
+function tagin3(s,tag,field) {var a, b;
+a = s.indexOf(tag+"\">");
+if (a>0) a = s.indexOf("{",a);
+if (a>0) b = s.indexOf("}",a);
+if (b>0) {s = s.slice(a,b);
+a = s.indexOf("\""+field+"\": \"")+field.length+5;
+if (a>field.length+4) b = s.indexOf("\"",a);
+if (b>0) return cstr(s.slice(a,b))}
+return ""}
+
+function bytag(s,tag) {let a=s.indexOf(tag); if (a<0) return ""; a=s.indexOf(">",a); let b=s.indexOf("<",a); if (a<0||b<0) return ""; return cstr(s.slice(a+1,b))}
+
+function chop(s,s1,s2) {let a = s.indexOf(s1); let b = s.indexOf(s2, a); if (a > -1 && b > 0) {
+return s.slice(a,b)} return s}
+
+function chops(s,s1,s2) {let a = s.indexOf(s1); let b = s.indexOf(s2, a); if (a > -1 && b > 0) {
+return s.slice(a,b)} return ""}
+
+function abc(s) {
+var n; let a=s.split("");
+for(let i=1; i<a.length; i++) {
+n = a[i].charCodeAt(0); m = a[i-1].charCodeAt(0); if (!("кВіГiPkTпЛuTмАоКрАєАєН".includes(a[i-1] + a[i]))) if ((n>1039 && n<1072) || (n>1028 && n<1031) || (n>64 && n<91)) if ((m>1071 && m<1104) || (".:;,".includes(a[i-1])) || (m>96 && m<123) || (m>1107 && m<1112)) a[i-1]+=" "} return a.join("").replace(/\.\"/g,". \"").replace(/ \. /,". ")}
+
+function ac(x, y) {x.classList.add(y)}
+
+function add(s) {
+return document.createElement(s)}
+
+function addbg() {
+if (opts.bg!=1) return;
+let canvascr = canva.toDataURL(); body.setAttribute("style","background-image: url("+canvascr+");"); cloud.setAttribute("style","background-image: url("+canvascr+");"); clearInterval(interval1); ac(canva,hide);canva.getContext("2d").ctx.clearRect(0,0,wx,hx)}
+
+function arr2hex(a) {return Array.from(a)
+.map(byte => byte.toString(16).padStart(2, '0'))}
+
+function bgset() {if (opts.bg==0) return;
+let arr = gc("d"); for (let i=0; i<arr.length; i++) {arr[i].setAttribute("style","color: #bbc;")}
+arr = gc("m"); for (let i=0; i<arr.length; i++) {arr[i].setAttribute("style","border-radius: 8px 8px 0 0; background-color: #191919; opacity: 0.8; border: 1px solid #303030; padding: 8px 12px 8px 14px; color: #eef; font-family: sans-serif;")}
+arr = gc("reply"); for (let i=0; i<arr.length; i++) {arr[i].setAttribute("style","border-radius: 0 0 8px 8px; background-color: #192020; opacity: 0.7; border: 1px solid #303030; padding: 6px 14px; color: #dde; font-family: sans-serif;  line-height: 18px;")}}
+
+function bgshow() {
+var c, d, c1, c2, c3; const drops = [];
+const ctx = canva.getContext("2d"); dc(canva,hide); const abc= "⚪⚫";
+const font = 24; const col = wx/font; 
+canva.width = wx; canva.height = hx;
+for (let i=0; i<col; i++) {drops[i]=1}
+const draw = () => {
+ctx.fillStyle = "rgba(10, 20, 10, 0.05)";
+ctx.fillRect(0, 0, wx/1.3, hx/1.1);
+ctx.rotate((4 * Math.PI) / 180);
+ctx.font = font + "px sans-serif";
+for (let i=0; i<drops.length; i++) {
+const text = abc.charAt(Math.floor(Math.random() * abc.length));
+c="#" + gn() + gn() + gn();
+d="#" + gn() + gn() + gn();
+ctx.shadowBlur = 20;
+ctx.shadowColor = c;
+ctx.shadowOffsetX = gn();
+ctx.shadowOffsetY = gn();
+var gradient = ctx.createLinearGradient(10, 30, 10, 0.05);
+gradient.addColorStop(0, c);
+gradient.addColorStop(1, d);
+ctx.fillStyle = gradient;
+ctx.fillText(text, i*font, drops[i]*font);
+if(drops[i]*font > hx) drops[i]=0;
+drops[i]++}}
+interval1 = setInterval(draw, 100)}
+
+function bufdec(s) {buf.innerHTML = cstr(s); return buf.innerHTML.toLowerCase()}
+
+function cstr(s) {return s.replace(/\n/g," ").replace(/<!\[CDATA\[/g,"\n").replace(/\]\]>/g,"\n").replace(/^\s*|\s*$|^\t*|\t*$/g,"").replace(/>.+<\/script>/gi,"").replace(/<[^>]*>/g,"").replace(/<|>|ㅤ|•|◼|\||script|tpircs/g,"").replace(/📸/g,"фото").replace(/🎥/g,"відео").replace(/[\x00-\x19]|[\x7F-\x9F]|[\x1A-\x1F]/g,"\uFFFD").replace(/[^\p{L}\p{N}\p{P}\p{Sm}\p{Sc}\p{Z}^$\n]/gu,"")}
+
+function dc(x, y) {x.classList.remove(y)}
+
+function dec(s) {return s.replace(/&amp;|&#038;/g,"&").replace(/&#8211;/g,"–").replace(/&#700;|&#8217;|&#39;|`|&apos;|&rsquo;/g,"’").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#33;/g,"!").replace(/&quot;|&#8220;|\\&quot;/g,"\"").replace(/&#x2B;/g,"+").replace(/&#x2D;/g,"-")}
+
+function dhide() {ac(dbg,hide)}
+
+function digdate(s) { try {
+s = new Intl.DateTimeFormat("uk-UA", {dateStyle: "short", timeStyle: "short", timeZone: "Europe/Kiev"}).format(new Date(s));
+return s.replace(", "," ").split(" ").reverse().join(" ");
+}catch(e){return e.name}
+}
+
+function dsay(s) {dc(dbg,hide); dbg.innerText = s; setTimeout(dhide,2800)}
+
+function epoch(date) {
+let a=(new Date(date)).toLocaleString().split(" ");
+return a[1].slice(0,5)+" "+ a[0].slice(0,10).replace(".20",".")}
+
+function fbin(u,file,mod) {
+const u32 = u.subarray(0,32);
+tarr[++idx]="b"; const len = u.byteLength;
+const uend = u.subarray(len - 32, len);
+const s = asis(dec1.decode(u32));
+const us = arr2hex(u32);
+const ue = arr2hex(uend);
+iarr[idx] = pd + mod + ps + pe + us.join(" ") + "  ... " + ue.join(" ") + br2 + s + pa + pe + file; epilog()}
+
+function frep(u,wht,wth) {
+let a = dec1.decode(u);
+let b = a.replaceAll(wht,wth);
+savetxt(b); epilog()}
+
+function asis(s) {return "<textarea>"+s+"</textarea>"}
+
+function ferr(e,file) {
+w2say("\n"+file+": "+e); isErr=1}
+
+function gc(s) {
+return document.getElementsByClassName(s)}
+
+function gcc(s) {return s.charCodeAt(0)}
+
+function gch(h) {return String.fromCharCode(parseInt(h,16))}
+
+function gerr(err) {isErr = 1; box.innerHTML = ("<p class=\"error\">Перервано " + err.source + br + err.name + br2 + err.message + br + err.stack + br + err).replace(/undefined<br>/g,"");
+box.innerHTML = box.innerHTML.replace(/%2F/g,"/").replace(/%3A/g,":")}
+
+function sbytes(u, from, to) {
+var s=""; for (let i=from; i<to; i++) {
+s += String.fromCharCode(u[i])} return s}
+
+function getcss(obj,s) {
+return window.getComputedStyle(obj, null).getPropertyValue(s)}
+
+function getimg(s) {
+let st = tagin(s,"enclosure","url"); if(st) return st;
+st = tagin(s,"media:content","url"); if(st) return st;
+st = tagin(s,"img","src"); if(st) return st;
+return ""}
+
+function getinfo(s,src) {
+var x=[]; x.push(gets(s,"<title"));
+const sbase = getbaseurl(s.slice(0,16384));
+if (src=="rss" || src=="atom" || src=="rdf") {
+x.push(sbase); return res()}
+if (src=="tg") { x.push(chops(s,"<div class=\"tgme_channel_info_counter\">","</div>").split("</span>")[0]);
+x.push(chops(s,"<div class=\"tgme_channel_info_header_username\">","</div>")); return res()}
+if (src=="ukrnet") { x.push(sbase); return res()}
+if (src=="blackseanews") { x.push(sbase); return res()} if (src=="suspilne") { x.push(btag(s,"<meta property=\"og:site_name\" content"));
+x.push(sbase); return res()} return ""; function res() {return cstr(x.join(" "))+" "+src+" "}}
+
+function getlogo(s) {var a, b;
+a = s.indexOf("<image>");
+if (a>0) {b = s.indexOf("<url>",a);
+if (b>0) {a = b; b = s.indexOf("</url>",a);
+return cstr(s.slice(a,b))}}
+a = btag(s,"<webfeeds:cover image");
+if (!a) a = btag(s,"<meta property=\"og:image\" content"); if (a) return cstr(a); return ""}
+
+function gid(s) {
+return document.getElementById(s)}
+
+function gn() {return Math.floor(Math.random()*100).toString()}
+
+function gt(s) {return document.getElementsByTagName(s)}
+
+function href(s) {var x=""; var a = s.lastIndexOf("https://") || s.lastIndexOf("http://"); const len = s.length; while (a>0 && !(s[a]=="\"" || s[a]=="\'" || s[a]=="<" || s[a]==" ") && a<len) {x+=s[a]; a++} if (x.length>9 && x.includes(".")) return x; return ""}
+
+function ico() {
+open.innerText="📂"; dc(open,hide)}
+
+function icohide() {ac(open,hide)}
+
+function imgstr(s,w,c="") {return "<img src=" + s + " width="+ w +" class="+ c +">"}
+
+function magnify() {
+if (getcss(gc("m")[0],"font-size") == "18px") {
+zoom(1.2); return} zoom(1)}
+
+function next(e,file) {
+ferr(e,file); if (++iDone==iAll) finita()}
+
+function now() {const d = new Date();
+YY = String(d.getFullYear()).slice(-2); MM = a(d.getMonth()+1); DD = a(d.getDate()); hh = a(d.getHours()); mm = a(d.getMinutes()); ss = a(d.getSeconds()); ms = a(d.getMilliseconds()); return YY+MM+DD+ "-" +hh+ mm; function a(s) {return ("0"+s).slice(-2)}}
+
+function getobj(b) {
+return window.URL.createObjectURL(b)}
+
+function pth() {let c=window.location.pathname;
+c=c.replace(/%3A/g, ":").replace(/%2F/g,"/"); return "/"+ c.slice(c.lastIndexOf(":")+1, c.lastIndexOf("/"))+"/"}
+
+function reldate(s) {
+var a = s.split(" ");
+return Number(a[1].slice(6,8) + a[1].slice(3,5) + a[1].slice(0,2) + a[0].replace(/:/g,""))}
+
+function savefile() {
+let x = gt("html")[0].innerHTML.replace("#open {","#open {display: none; ");
+if (opts.tran==1) x = x.replace("quirky", "google-translated user-generated page").replace(/<font style=\"vertical-align: inherit;\">|<\/font>/g,"").replace(/<a class=\"globo\"/g,"&nbsp;<a class=\"globo\"").replace(/<\/style/g," .skiptranslate, .goog-te-gadget, goog-te-combo {display: none}<\/style");
+if (opts.tran==0) x = x.replace("quirky", "user-generated page");
+x = "<!DOCTYPE html><html lang=\"uk-UA\">" + x + "</html>"; const blob = new Blob([x], {type: mime.txt}); let link = add("a"); link.href = getobj(blob); link.download = "news-" + now() + ".html"; link.click()}
+
+function savetxt(s) {
+const blob = new Blob([s], {type: mime.txt}); let link = add("a"); link.href = getobj(blob); link.download = "dbgtxt-" + now() + ss + ms + ".html"; link.click()}
+
+function savetext(s,name) {
+const blob = new Blob([s], {type: mime.txt}); let link = add("a"); link.href = getobj(blob); link.download = name; link.click()}
+
+function sc(n) {return String.fromCharCode(n)}
+
+function tx(e) {
+return e.changedTouches[0].screenX}
+
+var ta, tz;
+function tzone(s) {if (!ta) {
+ta="AST|ADT|GMT|Europe/Dublin|WET|WEST|WAT|CET|CEST|CAT|SAST|EAT|EEST|".split("|");
+tz="-0400|-0300|+0000|+0000|+0000|+0100|+0100|+0100|+0200|+0200|+0200|+0300|+0300|".split("|")}
+for (let i=0; i<ta.length; i++) {if (s.includes(" "+ta[i])) {return s.replace(ta[i],tz[i])}} return s}
+
+function w2say(s) {w2show(); if (w2.innerText) {w2.innerText+="\n"+s} else {w2.innerText=s} icohide(); w2upd()}
+function w2set() {
+let c = w2.getBoundingClientRect(); w3.style.top = c.top + "px"; w3.style.left = (c.right-25) + "px"}
+function w2show() {
+dc(w2,hide); dc(w3,hide); w2set()}
+function w2hide() {ac(w2,hide); ac(w3,hide)}
+function w2upd() {w2set();
+w3.innerHTML = (isErr==0) ? "(🟢)" : "(🟠)"}
+
+function zoom(x) {var s, h, w, x;
+if (opts.bg>0) {s=18; h=28; w=0.3;
+setc("m","line-height:"+h*x+"px; "+setf() +" letter-spacing:" + w*x + "px; border-radius: 8px 8px 0 0; background-color: #191919; opacity: 0.8; border: 1px solid #303030; padding: 8px 12px 8px 14px; color: #eef; font-family: sans-serif;"); s=15; h=20; w=0.3;
+setc("reply","line-height:"+h*x+"px; "+setf() +" letter-spacing:" + w*x + "px; border-radius: 0 0 8px 8px; background-color: #192020; opacity: 0.7; border: 1px solid #303030; padding: 6px 14px; color: #dde; font-family: sans-serif;");
+return}
+setc("m","line-height:"+h*x+"px; "+setf() +" letter-spacing:" + w*x + "px;");
+s=12; setc("d", setf()); setc("globo", setf());
+function setc(c, s) {let arr = gc(c); for (let i=0; i<arr.length; i++) {arr[i].setAttribute("style",s)}}
+function setf(n=1) {return "font-size:"+s*x*n+"px;"}
+}
+
+/* Text-to-speech (speechSynthesis):
+=====================================
+ acc:       some accent rules for tts;
+ langs:    supported locale codes;
+ en, de..  trigger strings of the language;
+ spk:       recognize item's language,
+                get strings from, set reading options,
+                read, stop;
+ despk:   cancel tts task;
+=====================================*/
+
+const acc = "ЄС|ye-еs|РФ|ер еф|ChatGPT|chat ji pi ti|дрібниць|дріб ниць|плекають|пле кають|закономірних|законо мірних|доповість|допо вість|плеканий|пле каний|звернеться|звер неться|НАТО|’нато|канонізує|каноні зує|СБУ|ес бе у|фікац|фі кац|проєкт|про ект|трували|тру вали|МЗС|ем зе ес|Говерл|го верл|поблиз|по близ|ланцюгов|ланцю гов|МВС|ем ве ес|акаунт|а каунт|засудж|за судж| етапу| ета пу|Нардеп|Нар деп|фанат|фа нат|держзра|держ зра|Близькому|близь 'кому|ЦАХАЛ|ца хал|нарости|нарос ти|молочки|мо лочки|США|се ше а|зіпсува|зіпсу ва|АТО|а то|мурал|му рал|Кахов|ка хов|РСЗВ|ер се зе ве|розглян|роз глян|балістик|ба лістик|балістич|баліс 'тич|ЗСУ|зе се у|ППО|пе пе о|БпЛА|бе пе ле а|рф|ер еф|ISW|інститут дослідження війни|ОШБр|о ша бе ер|парковк|пар ковк|диверса|дивер са|кг|кілограмів|тушков|туш ков|махінац|махі нац|загибе|за гибе|фсб|фе ес бе|ФСБ|еф ес бе|ваканс|ва канс|ясува|ясу ва|шахед|ша хед|парфум|пар ’фум|розкри|роз ’кри|ГУР|гур|атакувал|атаку ’вал|КНДР|ка ен де ер|ультимат|ульти мат|претенз|пре тенз|вибиват|виби ват|ботсад|бот 'сад|квітуч|кві туч|сипеди|сипе ’ди|пійма|пій ’ма|ентує|ен 'тує|АЕС|а 'ес|шукал|шу кал|храй|х рай|втрути|втру ти|ОМБр|о ем бе ер|знуща|зну ща|ловікі|лові ків|ітувати|іту вати|ркард|р кард|лаїв| лаїв|ДПСК|де пе се у|криття|крит тя|візува|візу ва|говики|гови 'ки|МВФ|ем ве еф|овіда|ові да|ОВА|о ва|кошт|’кошт|ОСУВ|о сув|’ян| ’ян|ракета|ра кета|'ян| ’ян|почили|по чили|гатили|га тили|СЗР|се зе ер|ПАРЄ|па ре|відкат|від ’кат|Черкащин|Чер ’кащин|прогримі|прогри ’мі|Запорі|Запо ’рі| лунат| лу ’нат|тихцем|ти ’хцем|скориговано|скори ’говано".split("|");
+
+const langs = ["uk-UA", "en-GB", "de-DE", "fr-FR", "tr-TR", "ro-RO", "lt-LT"]; const en="acibdejms".split(""); const de="ß|sch|ü|ö|ä|apf|mpf|ngst|cht|ehen|das|Ö|ird|sz|ahl|nach|Woh| von | mit | vor | das |Schw|nehm|lauf| der | oder | sich ".split("|"); const fr="ç|ê|d’|é|É|è|l’|à|œ|ë|oir|gne |que | les |eur ".split("|"); const ua="і ї є ґ ння \‘я ське сько ський".split(" "); const cr="ñ ğ ş â yaz".split(" "); const md="î ș ț".split(" "); const lt="ę ą į ž ų ė ū".split(" ");
+
+function spk(y="box") { try {
+if (opts.tts !==1) return;
+if (tts.is) {despk(); return} tts.is=1;
+dsay(dbg.innerText.replace(/🔇|🗣/g,"")+" 🗣");
+var u, d, f, e, c, v, l; u=d=f=e=c=v=l=0;
+var a1, a2, msg, i, j, s, ilocprev; var iloc=0;
+const msgs = gid(y).innerHTML.split("<p class=\"d\">"); i= (msgs.length==1) ? 0 : 1;
+for (i; i<msgs.length; i++) {
+msgs[i]=msgs[i].split("<p class=\"m reply\">")[0];
+if (msgs.length>1) {
+s = (tts.time==1) ? msgs[i].split(" ")[0]+". " : "";
+s = (tts.date==1) ? msgs[i].split(" ")[1]+". " : s;
+s = (tts.timedate==1) ? msgs[i].split(" ")[0]+", "+ msgs[i].split(" ")[1]+". " : s;
+s+=msgs[i].split(");\">")[1].replace(/<[^>]*|>|</g,"")}
+if (msgs.length==1) s = msgs[i]; if (!s) continue;
+s = s.replace(/<[^>]*|<|>/g,""); ilocprev=iloc;
+for(j=0;j<ua.length;j++){if (s.includes(ua[j])) u+=10}
+for(j=0;j<de.length;j++){if (s.includes(de[j])) d++}
+for(j=0;j<fr.length;j++){if (s.includes(fr[j])) f++}
+for(j=0;j<en.length;j++){if (s.includes(en[j])) e++}
+for(j=0;j<cr.length;j++){if (s.includes(cr[j])) c++}
+for(j=0;j<lt.length;j++){if (s.includes(lt[j])) l++}
+for(j=0;j<md.length;j++){if (s.includes(md[j])) v++}
+if (f>0||d>0) e=0; if (c>0||v>0||l>0) f=d=e=0;
+if ((u+d+f+e+c+v+l)==0){iloc=ilocprev} else {
+a1 = [0,2,3,1,4,5,6]; a2 = [u, d, f, e, c, v, l];
+for (j=0; j<a2.length-1; j++) {if (a2[j+1] > a2[0]) a1[0] = a1[j+1]} iloc=a1[0]}
+u=d=f=e=c=v=l=0; msg = new SpeechSynthesisUtterance(vcorrect(s.slice(0,3600)));
+msg.lang = langs[iloc]; msg.rate = 1.3; msg.pitch = 0.95; msg.volume = 0.1; speechSynthesis.speak(msg);
+msg.onerror = (event) => {despk2(); dsay(event.error.replace("interrupted","🔇"))};
+msg.onend = (event) => {despk(); dc(box,"blur")}}
+function vcorrect(s) {for (let i=0; i<acc.length; i=i+2) {if(s.includes(acc[i])) s=s.replace(acc[i], acc[i+1])} return s}
+}catch(e){gerr(e)}
+}
+
+function despk() {speechSynthesis.cancel(); dsay(dbg.innerText.replace(/🔇|🗣/g,"")+" 🔇"); tts.is=""}
+
+const rss = "https://www.pravda.com.ua/rss/view_news/|https://www.ukrinform.ua/rss/block-lastnews|https://fakty.com.ua/ua/feed/|https://unn.ua/rss/news_uk.xml|https://hromadske.radio/feed|https://www.radiosvoboda.org/api/zrqiteuuir|https://lb.ua/rss/ukr/news.xml|http://k.img.com.ua/rss/ua/all_news2.0.xml|https://itc.ua/ua/feed/|https://rss.unian.net/site/news_ukr.rss|https://espreso.tv/rss|https://t.me/s/Tsaplienko".split("|");
+function gtran() {new google.translate.TranslateElement({pageLanguage: "auto", includedLanguages: "en,uk,de"}, "trbox")}
+var gtranslate = add("script");
+if (opts.tran==1) {
+gtranslate.setAttribute("src","https://translate.google.com/translate_a/element.js?cb=gtran");
+gtranslate.setAttribute("type","text/javascript");
+body.appendChild(gtranslate)}
+function adda(lnk,txt) {return "<a target=\"_blank\" href=\""+lnk+"\">"+txt+"</a>"}
+</script>
+</body>
+</html>
