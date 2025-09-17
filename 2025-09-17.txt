@@ -1,0 +1,18 @@
+﻿17/09/2025
+When audio file(s) is opening AND opts.fft=1:
+spectrogram (opts.fft.drawsize) and average peak dynamic (opts.fft.calcsize) will be shown (WebAudio routines) with signal() internal function;
+
+Thanks Internet a lot, especially:
+
+https://webaudio.github.io/web-audio-api/
+
+https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API
+
+https://github.com/mdn/webaudio-examples/blob/main/voice-change-o-matic/scripts/app.js
+ https://webaudioapi.com/book/Web_Audio_API_Boris_Smus_html/ch05.html
+
+https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/decodeAudioData
+
+https://gist.github.com/diem1/4fd37cf1542bb3ab880e
+
+and web search (MS).
