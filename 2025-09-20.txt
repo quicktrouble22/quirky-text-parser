@@ -1,0 +1,26 @@
+﻿20/09/2025 WebAudio
+signal(): Added detection of decibel/frequency pair(for ex.: const suspect = [-80,440,-48,500]; etc) in audio file (opts.fft=1; opts.dbmin=-48 means "lowest level of detection" );
+signal(): Removed canvas spectrogram.
+
+19/09/2025 WebAudio
+signal(): Added base biquad filtering (lowpass, bandpass, highpass);
+
+17/09/2025 WebAudio
+signal(): Added base spectrogram (opts.fft.drawsize) and some calculations (opts.fft.calcsize) when opts.fft=1 and audio file is opening;
+
+Thanks Internet a lot, especially:
+
+https://developer.mozilla.org/en-US/docs/Web/API/BiquadFilterNode/BiquadFilterNode
+
+https://webaudio.github.io/web-audio-api/
+
+https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API
+
+https://github.com/mdn/webaudio-examples/blob/main/voice-change-o-matic/scripts/app.js
+ https://webaudioapi.com/book/Web_Audio_API_Boris_Smus_html/ch05.html
+
+https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/decodeAudioData
+
+https://gist.github.com/diem1/4fd37cf1542bb3ab880e
+
+and web search (MS).
