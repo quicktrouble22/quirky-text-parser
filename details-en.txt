@@ -1,0 +1,39 @@
+﻿quirky text parser
+User Manual v.2025-10;
+
+Topic, subject:
+Minimalistic wrapping core around user tasks, opened with browser by, for ex., long press and "Open with" pop-up.
+
+Disvantages:
+Eclectic, non-convient formatted, monolytic, parenting by browser's implementations and restrictions, optionally requires 3-rd party software like Total Commander for Android or Termux
+
+Advantages:
+Essential code fits smartphone screen with any text editor, running on any modern browser, on any compatible mobile platform, has relatively easy debug/upgrade, short scrolling, avoiding rogue malware which can be exist in ads, images, active content, or even in text on server's responces..
+
+Some actual features:
+1) Get manually different news pages, news feeds, images, audio, video as files; for ex., with left swipe and long press "Save/download as" popup Chromium/Chrome/Firefox option;
+2) Open them multiple;
+3) View them at once, sorted by date of post
+3a) filtered: check Filters sect. inside;
+3b) and decorated: check Options sect. inside;
+4) Translate them on fly with option activated;
+5) Listen them with one touch tts voice-over;
+6) Zoom them with double touch;
+7) Save them with right swipe gesture;
+7a) Save them with images inlined;
+8) Resort them by tags with left swipe gesture;
+9) Analyse FFT audio data from input or file;
+10) Deploy any related tasks like search strings in vocabulary text files by input, 2d board simulation, so on;
+
+Unreleased features:
+Add "fetch(serv); response.status" routines;
+Deploy small http server on router/pc/gadjet;
+Craft wget script feeds update with preformed names;
+Load feeds automatically on client's http get from same domain;
+
+License:
+Author decide do not stamp any license to avoid any relation with, as the thing is purely amateur platform includes only simple widely available ideas.
+
+Warranty of support & safety:
+Author cannot drop it out for years while still have not any feedback at all and absolute zero known userbase; BUT author will not perform required by GH 2FA essential procedure due to its unwanted professional complexity, so there is  deadline on 6th October, 2025 when author might be lost essential access to his creature's public instance. In the case of any user depends to the stuff, quirky can be hypotetically released back on other code sharing sides, like GL with the same name. Security aspects are only in YOUR arms, as we are living in the times of 6th-generation warfire, includes cyberspace, with underrated threats (like situation, when rogue someone got easy access to peaceful cloud backups through physical layer).
+
