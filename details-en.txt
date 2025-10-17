@@ -1,0 +1,96 @@
+﻿quirky text parser;
+description v.2025-10;
+
+About:
+1-file javascript wrapper intended/able to:
+- select multiple preprocessing options;
+- open multiple text/binary files at once, incl.:
+  - xml feeds, html, jpeg.. (see details inside);
+- apply sort, filter, translate.. tasks;
+- view, play, speak, export.. mixed data;
+- export options:
+   - html (default); 
+   - with base64 images inline;
+   - with A4 300PPI easy-to-print jpegs;
+- ability to adopt more browser and js features.
+
+Main steps:
+
+- Check UI "Options" to choose on-the-fly features you may need (or check the same section inside quirky's script itself for more hardcoded options);
+
+- Choose input files with UI "Open"; it can be a set of news feeds, images, audio, video; bytes load should be less than available userspace device memory; and there is max size per file limit defined in fread(); (may see few embed xml news links with long left swipe or UI "Links");
+
+- On success you can at least save what you see to file with long swipe right (see "Gestures" section inside quirky file);
+
+More features:
+
+- Check documented features inside quirky itself;
+
+Even more as an example:
+
+.. if you need to apply local filter rules to international content - you may pass next general steps:
+- check "const bF" filter rules (see Filters);
+- check "const tran" for your lang in langs;
+- select "Translate" option from UI and import international feeds;
+- select your language from top left widget;
+- scroll down content to complete translation;
+- swipe long right to export as html (start aside from left margin as it may close browser page);
+- swipe down (or another way) to refresh page;
+- select "bF" option from UI and import the translated file you've exported step before;
+- swipe long right to export results as html;
+- ok, completed.
+
+.. if you are trying found acoustic band from multi-harmonic copter's noise (dont take it seriously):
+- if you are on non-Android platform - microphone option in "const fft" may work there in easy way;
+- else you may try with audio sample you got (for ex. wget, grep, ffmpeg it to supported format);
+- select "FFT for audio" option from UI;
+- import your sample, click to play;
+- right column will showing peaks correlated with audio, so you may be able to fix something like 440..550Hz -70..-35dB, for sure it's not a fundamental frequency, but now you can imagine the band/amplitude of the fly mode out of sight (let's say 330..500 -70..-60) and can play further with non-strict filters described in "asel(" and narrow huge 32768 data frames;
+- as there is -60dB noise level outside, and most of market microphones have specific selectivity and diagram - you may need something more special in analytics;
+- left and center columns are showing occurence of pre-defined "const suspect" db/hz pair with small pre-defined offsets;
+
+Text-to-speech is a browser offline feature;
+Text translation is an online web-service of a pretty well-known provider;
+
+If one will choose bilingual translation ("Translate" and "- - bilingual" options) then original text will be shown on translated text single touch event.
+
+One can choose multiple options, for ex.:
+background + text-to-speech + save with images + translate + bilingual + filters + jpeg after export, which will create pretty functional export html; notice that "Filter" options require filled arrays (see Filters inside);
+
+Tags are also defined with tF array and available on left swipe after processing; then they are  filter on-the-fly content you see.
+
+If something will go wrong, there surely are these main errors:
+- quirky bugs itself (absent browser's features checks, non-strict property declarations, so on);
+- non-standart input data (like absent/unqualified date format in xml news feed file);
+- restrictions, implementations, limitations (like exceeded memory);
+- quirky version is too old and it's wrapping methods are obsolete;
+- unique, previously unknown, fresh and bright error.
+
+There is deadline of quirky and sheduler support on Github on 20-21 October, 2025 caused by 2FA procedure requirement. I'm too tied to do it for 80k amateur script with zero userbase, as it will surely will require more headache later (hardened personal emails, numbers so on beyong "severe security measures with my deanonymization");
+
+I will continue with my riskyware if something will change.
+- - 
+
+Some actual features:
+1) Get manually different news pages, news feeds, images, audio, video as files; for ex., with left swipe and long press "Save/download as" popup Chromium/Chrome/Firefox option;
+2) Open them multiple at once;
+3) View them reformed, sorted by date of post
+3a) filtered: check Filters sect. inside;
+3b) and decorated: check Options sect. inside;
+4) Translate them on fly;
+5) Listen them voice-over with one touch;
+6) Zoom them with double touch;
+7) Save them with right swipe gesture;
+7a) Save them with images inlined;
+8) Resort them by tags with left swipe gesture;
+9) Analyse FFT input/file audio data;
+10) Deploy any related tasks like search strings in vocabulary text files by input, 2d board simulation, so on;
+
+Unreleased features:
+Add "fetch(serv); response.status" routines;
+Deploy small http server on router/pc/gadjet;
+Craft wget script feeds update with preformed names;
+Load feeds automatically on client's http get from same domain;
+
+License:
+Author decide do not stamp any license to not interfere with, as the thing is purely amateur codebase includes only public available ideas and implementations.
