@@ -1,5 +1,6 @@
 # quirky-text-parser
 One file text parser written in JS.
+(There is mirrored/actualized project copy on Web. See details-en.txt)
 
 This amateur piece of code opens xml news feeds, some html pages to seek such a feeds, t.me pages, and, if supported by browser, few binary formats like jpeg/png/gif89a, mp3/mp4/ogg/wav, webp/webm. It shows data items (like news records or files) sorted by time in easy to read way. It has few options like export images within formed page/feed, read items with browsers TTS, translate page with Google and more. More details are in script section.
 
